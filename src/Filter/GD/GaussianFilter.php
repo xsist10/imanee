@@ -13,32 +13,55 @@ class GaussianFilter implements FilterInterface
      */
     public function apply(Imanee $imanee, array $options = [])
     {
-        /** @var resource $resource */
-        $size = $imanee->getSize();
+        // Since we don't have a nice Gaussian blur function in GD, to achieve
+        // a similar effect we're going to layer multiple semi-transparent
+        // copies of the image on top of itself to create our blur effect
+
+        // Determine basic parameters for Gaussian blur
         $options = array_merge(['radius' => 2, 'sigma' => 2], $options);
 
-        $offset = floor($options['radius'] / 2);
-        $radius = $offset * 2;
-        $transparency = ceil(100 / ($radius + 1));
-        $canvas = new GDResource();
-        $canvas->createNew($size['width'] + $radius, $size['height'] + $radius);
+        $diameter = $options['radius'] * 2;
+        // 4 images per radius unit 
+        $transparency = ceil(4 * 100 / $diameter);
 
-        for ($x=0; $x<$radius; $x++) {
-            for ($y=0; $y<$radius; $y++) {
+        // Create new resource with boarders extended to account for the radius
+        // we're going to blend from
+        $canvas = new GDResource();
+        $size = $imanee->getSize();
+        $canvas->createNew($size['width'] + $diameter, $size['height'] + $diameter);
+
+        //  We're going to start at the outter each of the radius and move
+        //  inwards. We'll place an image in the 4 corners then move 1 radius
+        //  inwards until we reach the center. This creates a blur with the
+        //  center as the focal point
+        for ($i=0; $i<$options['radius']; $i++) {
+
+            // Lay out the image offsets
+            $grid = [
+                [ $i,             $i             ],
+                [ $diameter - $i, $i             ],
+                [ $diameter - $i, $diameter - $i ],
+                [ $i,             $diameter - $i ]
+            ];
+
+            foreach ($grid as $offset) {
+                // Merge out layers
                 imagecopymerge(
                     $canvas->getResource(),
                     $imanee->getResource()->getResource(),
-                    $x,
-                    $y,
+                    $offset[0],
+                    $offset[1],
                     0,
                     0,
                     $size['width'],
                     $size['height'],
-                    $x == $offset && $y == $offset ? $transparency * 2 : $transparency);
+                    $transparency
+                );
             }
         }
+
         // Trim off our extended boundaries
-        $canvas->crop($size['width'], $size['height'], $radius, $offset);
+        $canvas->crop($size['width'], $size['height'], $options['radius'], $options['radius']);
         $imanee->setResource($canvas);
     }
 
