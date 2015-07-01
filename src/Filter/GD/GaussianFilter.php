@@ -18,7 +18,7 @@ class GaussianFilter implements FilterInterface
         // copies of the image on top of itself to create our blur effect
 
         // Determine basic parameters for Gaussian blur
-        $options = array_merge(['radius' => 2, 'sigma' => 2], $options);
+        $options = array_merge(['radius' => 4, 'sigma' => 4], $options);
 
         $diameter = $options['radius'] * 2;
         // 4 images per radius unit 
@@ -29,6 +29,9 @@ class GaussianFilter implements FilterInterface
         $canvas = new GDResource();
         $size = $imanee->getSize();
         $canvas->createNew($size['width'] + $diameter, $size['height'] + $diameter);
+
+        $canvasResource = $canvas->getResource();
+        $imaneeResource = $imanee->getResource()->getResource();
 
         //  We're going to start at the outter each of the radius and move
         //  inwards. We'll place an image in the 4 corners then move 1 radius
@@ -47,8 +50,8 @@ class GaussianFilter implements FilterInterface
             foreach ($grid as $offset) {
                 // Merge out layers
                 imagecopymerge(
-                    $canvas->getResource(),
-                    $imanee->getResource()->getResource(),
+                    $canvasResource,
+                    $imaneeResource,
                     $offset[0],
                     $offset[1],
                     0,
@@ -62,7 +65,7 @@ class GaussianFilter implements FilterInterface
 
         // Trim off our extended boundaries
         $canvas->crop($size['width'], $size['height'], $options['radius'], $options['radius']);
-        $imanee->setResource($canvas);
+        $imanee->getResource()->setResource($canvas->getResource());
     }
 
     /**
